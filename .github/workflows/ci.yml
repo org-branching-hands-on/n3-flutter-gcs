@@ -1,0 +1,50 @@
+name: Flutter Basic CI
+
+# Triggers: Roda em push na main e em qualquer PR
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "**" ] # Roda em PRs para qualquer branch
+
+jobs:
+  # Job 1: Verifica a formatação e análise estática
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-flutter@v1
+        with:
+          flutter-version: '3.x' # Use a versão do seu projeto
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Run linter
+        run: flutter analyze
+
+  # Job 2: Roda os testes de widget
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-flutter@v1
+        with:
+          flutter-version: '3.x'
+          cache: true # Habilita cache
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Run tests
+        run: flutter test
+
+  # Job 3: Faz o build de um APK de debug (para validar o build)
+  build-apk:
+    needs: [lint, test] # Roda somente se lint e test passarem
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-flutter@v1
+        with:
+          flutter-version: '3.x'
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Build APK (Debug)
+        run: flutter build apk --debug
