@@ -1,43 +1,42 @@
-name: Flutter Basic CI
+name: Flutter CI/CD
 
-# Triggers: Roda em push na main e em qualquer PR
 on:
   push:
     branches: [ "main" ]
   pull_request:
-    branches: [ "**" ] # Roda em PRs para qualquer branch
+    branches: [ "**" ]
 
 jobs:
-  # Job 1: Verifica a formatação e análise estática
   lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-flutter@v1
-        with:
-          flutter-version: '3.x' # Use a versão do seu projeto
-      - name: Install dependencies
-        run: flutter pub get
-      - name: Run linter
-        run: flutter analyze
-
-  # Job 2: Roda os testes de widget
-  test:
+    # ... (job 'lint' permanece o mesmo) ...
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-flutter@v1
         with:
           flutter-version: '3.x'
-          cache: true # Habilita cache
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Run linter
+        run: flutter analyze
+
+  test:
+    # ... (job 'test' permanece o mesmo) ...
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-flutter@v1
+        with:
+          flutter-version: '3.x'
+          cache: true
       - name: Install dependencies
         run: flutter pub get
       - name: Run tests
         run: flutter test
 
-  # Job 3: Faz o build de um APK de debug (para validar o build)
   build-apk:
-    needs: [lint, test] # Roda somente se lint e test passarem
+    # ... (job 'build-apk' permanece o mesmo) ...
+    needs: [lint, test] 
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -48,3 +47,39 @@ jobs:
         run: flutter pub get
       - name: Build APK (Debug)
         run: flutter build apk --debug
+
+  # NOVO JOB ADICIONADO NESTA TAREFA
+  build-android-release:
+    needs: [lint, test] # Depende dos testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3 # Setup do Java (necessário p/ Android)
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+      - uses: actions/setup-flutter@v1
+        with:
+          flutter-version: '3.x'
+          cache: true
+
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.MY_KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/android/app/my-release-key.jks
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Android App Bundle (Release)
+        run: |
+          flutter build appbundle --release \
+            --keystore-password "${{ secrets.MY_KEYSTORE_PASSWORD }}" \
+            --key-alias "${{ secrets.MY_KEY_ALIAS }}" \
+            --key-password "${{ secrets.MY_KEY_PASSWORD }}" \
+            --keystore "${{ github.workspace }}/android/app/my-release-key.jks"
+
+      # Opcional: Upload do artefato gerado
+      - uses: actions/upload-artifact@v3
+        with:
+          name: release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
